@@ -1,0 +1,174 @@
+{
+  "name": "Clasificacion de Leads VIP",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": { "item": [{ "mode": "everyMinute" }] },
+        "authentication": "airtableOAuth2Api",
+        "baseId": { "__rl": true, "mode": "id", "value": "appdwHWdF8gNKm3PS", "cachedResultName": "Leads VIP" },
+        "tableId": { "__rl": true, "mode": "id", "value": "tblGHKI98zDBMHpaB", "cachedResultName": "Leads" },
+        "triggerField": "Ultima modificacion",
+        "additionalFields": { "formula": "{Estado} = 'Nuevo'" }
+      },
+      "id": "3d7a5e9a-8c7d-44ef-92de-83ccba7da5f8",
+      "name": "Trigger - Nueva fila en Leads",
+      "type": "n8n-nodes-base.airtableTrigger",
+      "typeVersion": 1,
+      "position": [-400, 0],
+      "credentials": { "airtableOAuth2Api": { "id": "FBmgGAqkb8OP9hUT", "name": "Airtable account" } }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 3 },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.fields.Mensaje }}",
+              "operator": { "operation": "notEmpty", "type": "string" },
+              "rightValue": ""
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "498c65b0-95c0-459d-bcfb-78b6f1fa1c19",
+      "name": "Validar Mensaje No Vacio",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [-160, 0]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Nombre: {{ $json.fields.Name }} | Empresa: {{ $json.fields.Empresa }} | Mensaje: {{ $json.fields.Mensaje }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "Actua como mi Asistente de Calificacion de Leads. Tu objetivo es leer el mensaje del lead y clasificarlo como \"VIP\" o \"Estandar\" segun estos criterios: VIP menciona un presupuesto alto, un volumen grande de trabajo, una empresa reconocida, o pide explicitamente hablar con alguien senior del equipo. Estandar es una consulta general, sin senales de urgencia o volumen relevante. Antes de clasificar, pensa paso a paso: primero identifica las frases del mensaje que dan pistas sobre presupuesto, volumen o urgencia: luego contrasta esas pistas contra los criterios; recien despues asigna la clasificacion final. Si el mensaje no da ninguna pista clara de que sea VIP, clasificalo como Estandar por defecto. Ademas, redacta un borrador breve de email de bienvenida (3-4 lineas), calido y profesional, adaptado al tono segun la clasificacion."
+        }
+      },
+      "id": "300e067b-7c60-421d-aa3d-bbe0e320c0b4",
+      "name": "IA - Clasificar Lead",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [128, -16]
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{ \"clasificacion\": \"VIP\", \"justificacion\": \"Menciona presupuesto alto y pide hablar con alguien senior\", \"email_borrador\": \"Hola Marcos, gracias por contactarnos...\" }"
+      },
+      "id": "7627afd7-720b-4552-b4a3-e8be2784c49b",
+      "name": "Parser Clasificacion Lead",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [288, -144]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            { "id": "a1", "name": "record_id", "value": "={{ $('Trigger - Nueva fila en Leads').item.json.id }}", "type": "string" },
+            { "id": "a2", "name": "clasificacion", "value": "={{ $json.output.clasificacion }}", "type": "string" },
+            { "id": "a3", "name": "justificacion", "value": "={{ $json.output.justificacion }}", "type": "string" },
+            { "id": "a4", "name": "email_borrador", "value": "={{ $json.output.email_borrador }}", "type": "string" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "2eb3590a-93c5-437e-8a90-2f8b9a23da9d",
+      "name": "Preparar Datos para Airtable",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [432, -16]
+    },
+    {
+      "parameters": {
+        "authentication": "airtableOAuth2Api",
+        "operation": "update",
+        "base": { "__rl": true, "mode": "id", "value": "appdwHWdF8gNKm3PS", "cachedResultName": "Leads VIP" },
+        "table": { "__rl": true, "mode": "id", "value": "tblGHKI98zDBMHpaB", "cachedResultName": "Leads" },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "matchingColumns": ["id"],
+          "value": {
+            "id": "={{ $json.record_id }}",
+            "Estado": "Pendiente de Revisión ",
+            "Aprobado": false,
+            "Clasificacion IA": "={{ $json.clasificacion }}",
+            "Justificacion IA": "={{ $json.justificacion }}",
+            "Email borrador": "={{ $json.email_borrador }}"
+          }
+        },
+        "options": { "typecast": true }
+      },
+      "id": "75e8edd7-4240-4528-83c5-f70aaab3a442",
+      "name": "Escribir Clasificacion en Airtable",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.2,
+      "position": [624, -16],
+      "credentials": { "airtableOAuth2Api": { "id": "FBmgGAqkb8OP9hUT", "name": "Airtable account" } }
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "select": "channel",
+        "channelId": { "__rl": true, "cachedResultName": "general-tt-workspace", "mode": "id", "value": "C0C10AU9GHW" },
+        "text": "=⚠️ Lead sin mensaje: {{ $json.fields.Name }} ({{ $json.fields.Email }}) — completar el campo Mensaje en Airtable antes de procesar.",
+        "otherOptions": {}
+      },
+      "id": "3f7060d1-ff80-450d-a424-0aeaee647d8c",
+      "name": "Notificar Dato Faltante (Slack)",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.7,
+      "position": [128, 208],
+      "webhookId": "b1386927-e536-4a08-89fe-1c4b745a5929",
+      "credentials": { "slackOAuth2Api": { "id": "vFj044SCBPenZRHx", "name": "Slack account" } }
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "select": "channel",
+        "channelId": { "__rl": true, "cachedResultName": "general-tt-workspace", "mode": "id", "value": "C0C10AU9GHW" },
+        "text": "=🔔 Nuevo lead clasificado como *{{ $('Preparar Datos para Airtable').item.json.clasificacion }}* — revisar y aprobar en Airtable: https://airtable.com/appdwHWdF8gNKm3PS/tblGHKI98zDBMHpaB/{{ $('Preparar Datos para Airtable').item.json.record_id }}",
+        "otherOptions": {}
+      },
+      "id": "3b92f78f-16c0-4191-8f76-8e486472837f",
+      "name": "Notificar Revision (Slack)",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.7,
+      "position": [832, -16],
+      "webhookId": "c292c054-a89d-489e-8d8b-163b34eae243",
+      "credentials": { "slackOAuth2Api": { "id": "vFj044SCBPenZRHx", "name": "Slack account" } }
+    },
+    {
+      "parameters": {
+        "model": { "__rl": true, "mode": "id", "value": "claude-haiku-4-5-20251001" },
+        "options": { "maxTokensToSample": 600 }
+      },
+      "id": "dbe162be-9d73-4792-9e01-ce25d6766f77",
+      "name": "Claude Haiku",
+      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
+      "typeVersion": 1.6,
+      "position": [128, -144],
+      "credentials": { "anthropicApi": { "id": "FWzTTNfGSDM8pCLk", "name": "Anthropic account" } }
+    }
+  ],
+  "connections": {
+    "Trigger - Nueva fila en Leads": { "main": [[{ "node": "Validar Mensaje No Vacio", "type": "main", "index": 0 }]] },
+    "Validar Mensaje No Vacio": {
+      "main": [
+        [{ "node": "IA - Clasificar Lead", "type": "main", "index": 0 }],
+        [{ "node": "Notificar Dato Faltante (Slack)", "type": "main", "index": 0 }]
+      ]
+    },
+    "IA - Clasificar Lead": { "main": [[{ "node": "Preparar Datos para Airtable", "type": "main", "index": 0 }]] },
+    "Parser Clasificacion Lead": { "ai_outputParser": [[{ "node": "IA - Clasificar Lead", "type": "ai_outputParser", "index": 0 }]] },
+    "Preparar Datos para Airtable": { "main": [[{ "node": "Escribir Clasificacion en Airtable", "type": "main", "index": 0 }]] },
+    "Escribir Clasificacion en Airtable": { "main": [[{ "node": "Notificar Revision (Slack)", "type": "main", "index": 0 }]] },
+    "Claude Haiku": { "ai_languageModel": [[{ "node": "IA - Clasificar Lead", "type": "ai_languageModel", "index": 0 }]] }
+  },
+  "pinData": {},
+  "meta": {
+    "description": "Pipeline HITL: clasifica leads con Claude Haiku, escribe en Airtable y espera aprobacion antes de enviar. Pre-entrega final del curso de automatizacion IA."
+  }
+}
