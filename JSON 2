@@ -1,0 +1,75 @@
+{
+  "name": "Envio de Leads VIP Aprobados",
+  "nodes": [
+    {
+      "id": "be5191f9-d7c7-4275-a36b-cda9337a046c",
+      "name": "Trigger - Lead Aprobado",
+      "type": "n8n-nodes-base.airtableTrigger",
+      "typeVersion": 1,
+      "position": [-300, 0],
+      "parameters": {
+        "authentication": "airtableOAuth2Api",
+        "baseId": { "__rl": true, "mode": "id", "value": "appdwHWdF8gNKm3PS", "cachedResultName": "Leads VIP" },
+        "tableId": { "__rl": true, "mode": "id", "value": "tblGHKI98zDBMHpaB", "cachedResultName": "Leads" },
+        "triggerField": "Ultima modificacion",
+        "downloadAttachments": false,
+        "additionalFields": { "formula": "AND({Aprobado} = 1, {Estado} != 'Enviado')" }
+      },
+      "credentials": { "airtableOAuth2Api": { "id": "FBmgGAqkb8OP9hUT", "name": "Airtable account" } }
+    },
+    {
+      "id": "9280e96a-e4f2-49dc-b87a-2df9b39593dc",
+      "name": "Enviar Email de Bienvenida (Gmail)",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [-60, 0],
+      "parameters": {
+        "resource": "message",
+        "operation": "send",
+        "sendTo": "={{ $json.fields.Email }}",
+        "subject": "=Bienvenido/a, {{ $json.fields.Name }}",
+        "emailType": "text",
+        "message": "={{ $json.fields['Email borrador'] }}",
+        "options": { "appendAttribution": false }
+      },
+      "webhookId": "6df62f00-7461-49e2-b46f-e114d3145ca6",
+      "onError": "continueErrorOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "credentials": { "gmailOAuth2": { "id": "62ix7BBOgIxw1tv0", "name": "Gmail account" } }
+    },
+    {
+      "id": "8e29dc5b-546a-4ff6-8ab9-ace37438464d",
+      "name": "Actualizar Registro Final",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.2,
+      "position": [180, 0],
+      "parameters": {
+        "resource": "record",
+        "operation": "update",
+        "authentication": "airtableOAuth2Api",
+        "base": { "__rl": true, "mode": "id", "value": "appdwHWdF8gNKm3PS", "cachedResultName": "Leads VIP" },
+        "table": { "__rl": true, "mode": "id", "value": "tblGHKI98zDBMHpaB", "cachedResultName": "Leads" },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "matchingColumns": ["id"],
+          "value": {
+            "id": "={{ $('Trigger - Lead Aprobado').item.json.id }}",
+            "Estado": "Enviado",
+            "Fecha de envio": "={{ $now.toISODate() }}"
+          }
+        },
+        "options": { "typecast": true }
+      },
+      "credentials": { "airtableOAuth2Api": { "id": "FBmgGAqkb8OP9hUT", "name": "Airtable account" } }
+    }
+  ],
+  "connections": {
+    "Trigger - Lead Aprobado": { "main": [[{ "node": "Enviar Email de Bienvenida (Gmail)", "type": "main", "index": 0 }]] },
+    "Enviar Email de Bienvenida (Gmail)": { "main": [[{ "node": "Actualizar Registro Final", "type": "main", "index": 0 }]] }
+  },
+  "pinData": {},
+  "meta": {
+    "description": "Segundo flujo del pipeline HITL: se dispara cuando el checkbox Aprobado pasa a true en Airtable, envia el email de bienvenida por Gmail y actualiza el registro a Estado=Enviado."
+  }
+}
