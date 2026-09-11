@@ -17,12 +17,6 @@ con un punto de aprobación humana (HITL) antes de enviar cualquier email.
 - `system_prompt_ia.txt` — Prompt completo usado en el nodo de IA.
 - `/screenshots` — Evidencia de las 5 corridas de prueba.
 
-## Enlaces
-
-- **Dashboard de control (Airtable Interface):** [pegar acá el link público una vez activado el share]
-- **Video demo (3 min):** [pegar acá el link de YouTube/Drive]
-- **Base de Airtable (solo lectura):** [pegar acá el link, opcional]
-
 ## Resumen del flujo
 
 1. Un lead nuevo entra a la tabla "Leads" de Airtable con Estado = "Nuevo".
